@@ -1,0 +1,30 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  hub:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - MQTT_URL=mqtt://mosquitto:1883
+    depends_on:
+      - mosquitto
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+  simulator:
+    build: .
+    command: [ "node", "sensor.js" ]
+    environment:
+      - MQTT_URL=mqtt://mosquitto:1883
+    depends_on:
+      - mosquitto
+      - hub
+    volumes:
+      - ./logs:/app/logs

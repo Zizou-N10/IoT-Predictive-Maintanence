@@ -1,0 +1,124 @@
+{
+    "mqtt": {
+        "port": 1883,
+        "topicPrefix": "plant"
+    },
+    "simulation": {
+        "sampleRateHz": 512,
+        "numSamples": 256,
+        "tickMs": 1000,
+        "simHoursPerTick": 0.25,
+        "randomFaultsEnabled": false,
+        "randomFaultProbability": 0.015
+    },
+    "alerting": {
+        "debounceSec": 15,
+        "dropoutTimeoutMs": 3000
+    },
+    "machines": [
+        {
+            "id": "MOTOR-01",
+            "type": "Induction Motor",
+            "ratedRpm": 1800,
+            "idleCurrent": 4.5,
+            "ratedCurrent": 18.0,
+            "thermalTauSec": 18,
+            "ratedTempRise": 42,
+            "baseVibAmp": 1.4,
+            "processMetric": {
+                "name": "torque",
+                "unit": "Nm",
+                "min": 10,
+                "max": 95
+            },
+            "wearRatePerSimHour": 0.0008,
+            "thresholds": {
+                "tempMax": 72,
+                "vibRmsMax": 3.5,
+                "currentMax": 19.5
+            },
+            "cascadeTarget": {
+                "target": "PUMP-02",
+                "reason": "Shaft torque surge from MOTOR-01"
+            }
+        },
+        {
+            "id": "PUMP-02",
+            "type": "Centrifugal Pump",
+            "ratedRpm": 1450,
+            "idleCurrent": 3.2,
+            "ratedCurrent": 14.5,
+            "thermalTauSec": 22,
+            "ratedTempRise": 36,
+            "baseVibAmp": 1.8,
+            "processMetric": {
+                "name": "pressure",
+                "unit": "bar",
+                "min": 1.5,
+                "max": 8.5
+            },
+            "wearRatePerSimHour": 0.0012,
+            "thresholds": {
+                "tempMax": 66,
+                "vibRmsMax": 4.0,
+                "currentMax": 16.0
+            },
+            "cascadeTarget": {
+                "target": "COMP-04",
+                "reason": "Coolant flow drop from PUMP-02"
+            }
+        },
+        {
+            "id": "FAN-03",
+            "type": "Exhaust Fan",
+            "ratedRpm": 900,
+            "idleCurrent": 1.8,
+            "ratedCurrent": 8.5,
+            "thermalTauSec": 14,
+            "ratedTempRise": 28,
+            "baseVibAmp": 1.1,
+            "processMetric": {
+                "name": "flow",
+                "unit": "m3/h",
+                "min": 400,
+                "max": 2400
+            },
+            "wearRatePerSimHour": 0.0006,
+            "thresholds": {
+                "tempMax": 58,
+                "vibRmsMax": 2.8,
+                "currentMax": 9.5
+            },
+            "cascadeTarget": {
+                "target": "MOTOR-01",
+                "reason": "Lost cabinet cooling from FAN-03"
+            }
+        },
+        {
+            "id": "COMP-04",
+            "type": "Air Compressor",
+            "ratedRpm": 2900,
+            "idleCurrent": 6.0,
+            "ratedCurrent": 26.0,
+            "thermalTauSec": 25,
+            "ratedTempRise": 50,
+            "baseVibAmp": 2.3,
+            "processMetric": {
+                "name": "pressure",
+                "unit": "bar",
+                "min": 4.0,
+                "max": 12.0
+            },
+            "wearRatePerSimHour": 0.0015,
+            "thresholds": {
+                "tempMax": 80,
+                "vibRmsMax": 5.0,
+                "currentMax": 28.0
+            },
+            "cascadeTarget": {
+                "target": "FAN-03",
+                "reason": "Hot exhaust surge from COMP-04"
+            }
+        }
+    ]
+}

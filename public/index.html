@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Plant Control: MOTOR-01 to FAN-03</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/app.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script defer src="js/twin.js"></script>
+    <script defer src="js/app.js"></script>
+    <script defer src="js/portfolio.js"></script>
+</head>
+
+<body>
+    <header class="bar">
+        <div><span id="link-led" class="led" title="Socket link"></span><b class="brand">Plant Control</b> <span
+                class="dim">MOTOR-01 > PUMP-02 > COMP-04 > FAN-03, then round again</span></div>
+        <span id="env-bar" class="dim">Waiting for telemetry. Nobody is talking yet.</span>
+        <span class="r" style="margin:0"><button id="btn-guide">Guided demo</button><button id="btn-how">How it
+                works</button><span id="demo-flag" class="pill replay" hidden>DEMO MODE</span><span id="mode-pill"
+                class="pill live">LIVE MQTT</span></span>
+    </header>
+
+    <main class="grid">
+        <section class="panel row span" aria-label="Replay">
+            <label>Speed <select id="replay-speed">
+                    <option value="1">1x</option>
+                    <option value="5">5x</option>
+                    <option value="10" selected>10x</option>
+                    <option value="25">25x</option>
+                    <option value="50">50x</option>
+                </select></label>
+            <button id="btn-replay">Replay</button><button id="btn-live">Back to live</button>
+            <div class="prog"><i id="replay-fill"></i></div>
+            <span id="replay-progress" class="dim">Recording live telemetry to data/telemetry.sqlite</span>
+        </section>
+
+        <section class="panel twin">
+            <h2><span>Plant twin</span><span class="dim">Drag to orbit. Click a machine to select it.</span></h2>
+            <div id="twin">
+                <canvas id="gl" tabindex="0" aria-label="3D plant twin. Keys 1 to 4 select a machine."></canvas>
+                <svg id="fallback" viewBox="0 0 760 210" hidden></svg>
+                <div id="tip" hidden></div>
+            </div>
+        </section>
+
+        <section class="panel chaos">
+            <h2><span>Chaos console</span><span id="chaos-target-label" class="dim">Target: MOTOR-01</span></h2>
+            <div class="r">
+                <select id="chaos-machine" aria-label="Machine">
+                    <option>MOTOR-01</option>
+                    <option>PUMP-02</option>
+                    <option>FAN-03</option>
+                    <option>COMP-04</option>
+                </select>
+                <select id="chaos-fault" aria-label="Fault type">
+                    <option value="bearing_fault">Bearing fault (BPFO)</option>
+                    <option value="overheating">Overheating under load</option>
+                    <option value="cascading">Cascading fault</option>
+                    <option value="drift">Slow drift (EWMA)</option>
+                    <option value="stuck_at">Stuck-at value</option>
+                    <option value="spike">Transient spike</option>
+                    <option value="calibration_offset">Calibration offset</option>
+                    <option value="noisy_sensor">Noisy sensor</option>
+                    <option value="dropout">Packet dropout</option>
+                </select>
+            </div>
+            <div class="r"><button id="btn-inject">Inject for 15 s</button></div>
+            <div class="r"><label for="load-slider">Load</label><input id="load-slider" type="range" min="10" max="100"
+                    value="65"><output id="load-val">65%</output><button id="btn-load">Set</button><button
+                    id="btn-auto">Auto</button></div>
+            <div class="r"><button id="btn-kill">Kill node</button><button id="btn-revive">Revive node</button><button
+                    id="btn-random" aria-pressed="false">Random faults: off</button></div>
+            <div class="r"><button id="btn-clear">Hold to clear all</button></div>
+        </section>
+
+        <section class="row span kpis">
+            <div class="panel">
+                <h2><span>Health</span><span id="sel-name" class="dim">MOTOR-01</span></h2>
+                <div class="gauge">
+                    <svg viewBox="0 0 100 100" aria-hidden="true">
+                        <circle id="g-bg" cx="50" cy="50" r="40" />
+                        <circle id="g-arc" cx="50" cy="50" r="40" />
+                    </svg>
+                    <div>
+                        <div class="num" id="health-val">--</div>
+                        <div class="dim" id="metrics-inline">Temp, vibration, current: --</div>
+                    </div>
+                </div>
+                <p class="dim log" id="log-line">Pick a machine. Any machine.</p>
+            </div>
+            <div class="panel">
+                <h2><span>Remaining useful life</span><span id="rul-slope" class="dim">Trend: --</span></h2>
+                <div class="num" id="rul-val">--</div>
+                <div class="band" title="95% confidence band"><i id="band-i"></i></div>
+                <div class="dim" id="rul-band">No trend yet.</div>
+                <span id="rul-chip" class="badge">CALIBRATING</span>
+            </div>
+            <div class="panel">
+                <h2><span>Detection layers</span><span id="ml-status" class="dim">ML: training</span></h2>
+                <div class="r"><span id="b-l1" class="badge">L1 thresholds</span><span id="b-l2" class="badge">L2
+                        z-score / EWMA</span><span id="b-l3" class="badge">L3 isolation forest</span></div>
+                <p id="ml-line" class="dim">Isolation forest: training 0/20</p>
+                <p id="fft-summary" class="dim">Shaft f1: -- Hz. BPFO: -- Hz.</p>
+            </div>
+        </section>
+
+        <section class="row span vib">
+            <div class="panel">
+                <h2><span>Vibration spectrum</span><span id="bpfo-callout" class="dim">BPFO: --</span></h2>
+                <div class="cw"><canvas id="fftChart"></canvas></div>
+            </div>
+            <div class="panel">
+                <h2><span>Spectrogram</span><span class="dim">Time runs left to right, frequency upward</span></h2>
+                <canvas id="spectro" width="120" height="128"></canvas>
+            </div>
+        </section>
+
+        <section class="panel span">
+            <h2><span>Alerts</span><span><select id="alert-filter" aria-label="Filter alerts">
+                        <option value="all">All</option>
+                        <option value="active">Active</option>
+                        <option value="acknowledged">Acknowledged</option>
+                        <option value="resolved">Resolved</option>
+                    </select> <span id="alert-count" class="dim">0 alerts</span></span></h2>
+            <div class="tw">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Machine</th>
+                            <th>Layer</th>
+                            <th>Severity</th>
+                            <th>Message</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alert-tbody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <div id="toasts" role="status" aria-live="polite"></div>
+</body>
+
+</html>

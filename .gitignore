@@ -1,0 +1,15 @@
+# Dependencies (anyone cloning your repo runs "npm install" instead)
+node_modules/
+
+# Local runtime databases and logs
+data/
+logs/
+
+# OS & editor junk
+.DS_Store
+Thumbs.db
+
+.env
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
